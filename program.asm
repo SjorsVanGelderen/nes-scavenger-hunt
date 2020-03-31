@@ -71,6 +71,21 @@ LoadPalettesLoop:
 
 	LDA #%00010000		; Enable sprites
 	STA $2001
+
+LoadSprites:
+	LDX #$00
+LoadSpritesLoop:
+	LDA sprites,X
+	STA $0200,X
+	INX
+	CPX #$20
+	BNE LoadSpritesLoop
+
+	LDA #%10000000		; Enable NMI, sprites from pattern table 1
+	STA $2000
+
+	LDA #%00010000		; Enable sprites
+	STA $2001
 	
 Forever:			; Main loop, interrupted by NMI
 	JMP Forever
@@ -88,6 +103,12 @@ NMI:
 palette:
 	.db $0F,$31,$32,$33,$0F,$35,$36,$37,$0F,$39,$3A,$3B,$0F,$3D,$3E,$0F
 	.db $0F,$1C,$15,$14,$0F,$02,$38,$3C,$0F,$1C,$15,$14,$0F,$02,$38,$3C
+
+sprites:
+	.db $80,$32,$00,$80
+	.db $80,$33,$00,$88
+	.db $88,$34,$00,$80
+	.db $88,$35,$00,$88
 	
 	.org $FFFA		; IRQ vectors defined here
 	.dw NMI
