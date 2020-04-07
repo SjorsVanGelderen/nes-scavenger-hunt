@@ -122,6 +122,9 @@ SkipOddLineOffset:
         CPX #$0F                ; Check for end of line
         BNE LoadBackgroundLoop
         
+        LDA #$FF                ; Reset line progress counter
+        STA $0002
+        
         LDX $0003               ; Check if this is the first pass
         CPX #$00
         BNE SkipLineReset
@@ -131,8 +134,6 @@ SkipOddLineOffset:
         CLC
         SBC #$0F
         STA $0000
-        LDA #$00                ; Reset line progress counter
-        STA $0002
         JSR LoadBackgroundLoop
 
 SkipLineReset:
@@ -141,15 +142,6 @@ SkipLineReset:
         JSR LoadBackgroundLoop
         
 LoadBackgroundDone:
-        ;; TEST
-        LDA #$00
-        STA $2007
-        STA $2007
-        STA $2007
-        STA $2007
-        ;; TEST
-        
-        
 
 ;; LoadAttributes:
 ;;         LDA $2002
