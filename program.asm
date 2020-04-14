@@ -143,19 +143,19 @@ SkipLineReset:
         
 LoadBackgroundDone:
 
-;; LoadAttributes:
-;;         LDA $2002
-;;         LDA #$23
-;;         STA $2006
-;;         LDA #$C0
-;;         STA $2006
-;;         LDX #$00
-;; LoadAttributesLoop:
-;;         LDA attributes,X
-;;         STA $2007
-;;         INX
-;;         CPX #$08
-;;         BNE LoadAttributesLoop
+LoadAttributes:
+        LDA $2002
+        LDA #$23
+        STA $2006
+        LDA #$C0
+        STA $2006
+        LDX #$00
+LoadAttributesLoop:
+        LDA attributes,X
+        STA $2007
+        INX
+        CPX #$40
+        BNE LoadAttributesLoop
 
         LDA #%10010000          ; Enable NMI, sprites from pattern table 0
         STA $2000               ; Background from pattern table 1
@@ -186,38 +186,22 @@ NMI:
         .org $E000
 
 metatiles:
-        .incbin "one.mt"
+        .incbin "scavengerhunt.mt"
 
 background:
-        .incbin "one.nt"
+        .incbin "scavengerhunt.nt"
         
 palettes:
-        .db $22,$29,$1A,$0F,  $22,$36,$17,$0F,  $22,$30,$21,$0F,  $22,$27,$17,$0F
-        .db $22,$29,$1A,$0F,  $22,$36,$17,$0F,  $22,$30,$21,$0F,  $22,$27,$17,$0F
-        ;; .db $22,$1C,$15,$14,  $22,$02,$38,$3C,  $22,$1C,$15,$14,  $22,$02,$38,$3C
+        .incbin "scavengerhunt.s"
 
 sprites:
         .db $80,$32,$00,$80
         .db $80,$33,$00,$88
         .db $88,$34,$00,$80
         .db $88,$35,$00,$88
-        
-        ;; .db $24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24
-        ;; .db $24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24
 
-        ;; .db $24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24
-        ;; .db $24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24
-
-        ;; .db $24,$24,$24,$24,$45,$45,$24,$24,$45,$45,$45,$45,$45,$45,$24,$24
-        ;; .db $24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$53,$54,$24,$24
-
-        ;; .db $24,$24,$24,$24,$47,$47,$24,$24,$47,$47,$47,$47,$47,$47,$24,$24
-        ;; .db $24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$55,$56,$24,$24
-
-;; attributes:
-;;         .db %00000000, %00000000, %00000000, %00000000, %00000000, %00000000, %00000000, %00000000
-
-;;         .db $24,$24,$24,$24, $47,$47,$24,$24 ,$47,$47,$47,$47, $47,$47,$24,$24 ,$24,$24,$24,$24 ,$24,$24,$24,$24, $24,$24,$24,$24, $55,$56,$24,$24
+attributes:
+        .incbin "scavengerhunt.at"
         
         .org $FFFA              ; IRQ vectors defined here
         .dw NMI
@@ -228,4 +212,4 @@ sprites:
 
         .bank 2
         .org $0000
-        .incbin "one.chr"
+        .incbin "scavengerhunt.chr"
