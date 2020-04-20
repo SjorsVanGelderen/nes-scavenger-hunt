@@ -60,15 +60,6 @@ LoadPalettesLoop:
         INX
         CPX #$20
         BNE LoadPalettesLoop
-
-LoadSprites:
-        LDX #$00
-LoadSpritesLoop:
-        LDA sprites,X
-        STA $0200,X
-        INX
-        CPX #$10
-        BNE LoadSpritesLoop
         
 LoadBackground:        
         LDA $2002               ; Reset high/low latch on PPU
@@ -157,6 +148,58 @@ LoadAttributesLoop:
         CPX #$40
         BNE LoadAttributesLoop
 
+LoadSprites:
+        LDA #$00
+        STA $0000               ; Even mask
+        STA $0001               ; Metasprite progress
+        LDA #$80
+        STA $0010               ; Player X
+        STA $0011               ; Player Y
+        LDX #$00                ; Number of bytes written
+        LDY #$00                ; Sprite byte
+LoadSpritesLoop:
+        INC $0001               ; Increment metasprite progress
+        LDA $0001
+        CMP #$03                ; Check if this is tile 2 or 3 (bottom row)
+        BMI SkipBottomRowLogic
+        LDA $0011               ; Load Y coord
+        CLC
+        ADC #$08
+        STA $0200,X
+        JSR SkipTopRowLogic
+SkipBottomRowLogic:
+        LDA $0011               ; Load Y coord
+        STA $0200,X
+SkipTopRowLogic:
+        INX
+        
+        LDA sprites,Y           ; Tile number
+        STA $0200,X
+        INX
+        INY
+        LDA sprites,Y           ; Color and flipping information
+        STA $0200,X
+        INX
+        INY
+
+        LDA $0001
+        CLC
+        LSR A                   ; Check which column we are drawing
+        BCS SkipRightColumnLogic
+        LDA $0010               ; Load X coord
+        CLC
+        ADC #$08
+        STA $0200,X
+        JSR SkipLeftColumnLogic
+SkipRightColumnLogic:   
+        LDA $0010               ; Load X coord
+        STA $0200,X
+SkipLeftColumnLogic:    
+        INX
+        
+        CPX #$10
+        BNE LoadSpritesLoop
+        
         LDA #%10010000          ; Enable NMI, sprites from pattern table 0
         STA $2000               ; Background from pattern table 1
         LDA #%00011110          ; Enable sprites, background
@@ -195,10 +238,14 @@ palettes:
         .incbin "scavengerhunt.s"
 
 sprites:
-        .db $80,$32,$00,$80
-        .db $80,$33,$00,$88
-        .db $88,$34,$00,$80
-        .db $88,$35,$00,$88
+        .db $00,$00
+        .db $01,$00
+        .db $10,$00
+        .db $11,$00
+        ;; .db $80,$00,$00,$80
+        ;; .db $80,$01,$00,$88
+        ;; .db $88,$10,$00,$80
+        ;; .db $88,$11,$00,$88
 
 attributes:
         .incbin "scavengerhunt.at"
