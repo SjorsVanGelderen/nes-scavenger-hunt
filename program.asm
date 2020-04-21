@@ -98,10 +98,10 @@ FindOffsetLoop:
 
         LDY $0003               ; Retrieve even or odd line status
         CPY #$01
-        BNE SkipOddLineOffset
+        BNE OddLineOffsetDone
         INX                     ; Add offset for bottom tiles of metatile
         INX
-SkipOddLineOffset:
+OddLineOffsetDone:
         LDA metatiles,X         ; Retrieve the metatile data
         STA $2007               ; Upload it to PPU
         INX
@@ -118,7 +118,7 @@ SkipOddLineOffset:
         
         LDX $0003               ; Check if this is the first pass
         CPX #$00
-        BNE SkipLineReset
+        BNE LineResetDone
         INC $0003               ; Update even or odd line status
 
         LDA $0000               ; Move to beginning of line for second pass
@@ -127,7 +127,7 @@ SkipOddLineOffset:
         STA $0000
         JSR LoadBackgroundLoop
 
-SkipLineReset:
+LineResetDone:
         LDA #$00
         STA $0003
         JSR LoadBackgroundLoop
@@ -149,79 +149,189 @@ LoadAttributesLoop:
         BNE LoadAttributesLoop
 
 LoadSprites:
-        LDA #$00
-        STA $0000               ; Even mask
-        STA $0001               ; Metasprite progress
-        LDA #$80
-        STA $0010               ; Player X
-        STA $0011               ; Player Y
-        LDX #$00                ; Number of bytes written
-        LDY #$00                ; Sprite byte
+        LDX #$00
 LoadSpritesLoop:
-        INC $0001               ; Increment metasprite progress
-        LDA $0001
-        CMP #$03                ; Check if this is tile 2 or 3 (bottom row)
-        BMI SkipBottomRowLogic
-        LDA $0011               ; Load Y coord
-        CLC
-        ADC #$08
-        STA $0200,X
-        JSR SkipTopRowLogic
-SkipBottomRowLogic:
-        LDA $0011               ; Load Y coord
-        STA $0200,X
-SkipTopRowLogic:
-        INX
-        
-        LDA sprites,Y           ; Tile number
+        LDA sprites,X
         STA $0200,X
         INX
-        INY
-        LDA sprites,Y           ; Color and flipping information
-        STA $0200,X
-        INX
-        INY
-
-        LDA $0001
-        CLC
-        LSR A                   ; Check which column we are drawing
-        BCS SkipRightColumnLogic
-        LDA $0010               ; Load X coord
-        CLC
-        ADC #$08
-        STA $0200,X
-        JSR SkipLeftColumnLogic
-SkipRightColumnLogic:   
-        LDA $0010               ; Load X coord
-        STA $0200,X
-SkipLeftColumnLogic:    
-        INX
-        
         CPX #$10
         BNE LoadSpritesLoop
+        
+LoadArrow:
+        LDX #$00
+LoadArrowLoop:  
+        LDA playerUp,X
+        STA $0210,X
+        INX
+        CPX #$10
+        BNE LoadArrowLoop
+LoadArrowDone
         
         LDA #%10010000          ; Enable NMI, sprites from pattern table 0
         STA $2000               ; Background from pattern table 1
         LDA #%00011110          ; Enable sprites, background
         STA $2001
         
-Forever:                        ; Main loop, interrupted by NMI
-        JMP Forever
 
+        LDA #$00
+        STA $0010               ; Store player direction
+        STA $0011               ; Store player movement delay
+        STA $0012               ; Store player movement delay
+        STA $0013               ; Store player movement progress
+        
+        JSR PlayerMovementDone
+PlayerMovement:        
+        LDA $0010
+        CMP #$00
+        BEQ MoveDone
+        INC $0011
+        LDA $0011
+        CMP #$00
+        BNE MoveDone
+        INC $0012
+        LDA $0012
+        CMP #$10
+        BMI MoveDone
+        INC $0013
+        LDA $0013
+        CMP #$11
+        BNE FinishMoveDone
+        LDA #$00
+        STA $0010
+        STA $0011
+        STA $0012
+        STA $0013
+        JSR MoveDone
+FinishMoveDone:
+        LDA $0010
+        CMP #$01
+        BNE MoveUpDone
+        DEC $0210
+        DEC $0214
+        DEC $0218
+        DEC $021C
+        JSR MoveDone
+MoveUpDone:
+        CMP #$02
+        BNE MoveDownDone
+        INC $0210
+        INC $0214
+        INC $0218
+        INC $021C
+        JSR MoveDone
+MoveDownDone:
+        CMP #$03
+        BNE MoveLeftDone
+        DEC $0213
+        DEC $0217
+        DEC $021B
+        DEC $021F
+        JSR MoveDone
+MoveLeftDone:
+        CMP #$04
+        BNE MoveDone
+        INC $0213
+        INC $0217
+        INC $021B
+        INC $021F
+MoveDone:
+PlayerMovementDone:     
+        
+Forever:                        ; Main loop, interrupted by NMI
+        JSR PlayerMovement
+        JMP Forever
+        
 NMI:
         LDA #$00
         STA $2003               ; Set the low byte of the RAM address
         LDA #$02
         STA $4014               ; Set the high byte of the RAM address and start the transfer
 
-        ;; PPU cleanup
-        LDA #%10010000          
+        LDA #%10010000          ; PPU cleanup
         STA $2000
         LDA #%00011110
         STA $2001
         LDA #$00
         STA $2005               ; Inform PPU there is no background scrolling
         STA $2005
+
+LatchController:
+        LDA #$01
+        STA $4016
+        LDA #$00
+        STA $4016               ; Latch buttons on both controllers
+
+ReadA:
+        LDA $4016
+        AND #%00000001
+        BEQ ReadADone
+        ;;  Do something
+ReadADone:
+
+ReadB:
+        LDA $4016
+        AND #%00000001
+        BEQ ReadBDone
+        ;; Do something
+ReadBDone:
+        
+ReadSelect:
+        LDA $4016
+        AND #%00000001
+        BEQ ReadSelectDone
+        ;; Do something
+ReadSelectDone:
+
+ReadStart:
+        LDA $4016
+        AND #%00000001
+        BEQ ReadStartDone
+        ;; Do something
+ReadStartDone:
+
+ReadUp:
+        LDA $4016
+        AND #%00000001
+        BEQ ReadUpDone
+        LDA $0010
+        CMP #$00
+        BNE ReadUpDone
+        LDA #$01
+        STA $0010
+ReadUpDone:
+        
+ReadDown:
+        LDA $4016
+        AND #%00000001
+        BEQ ReadDownDone
+        LDA $0010
+        CMP #$00
+        BNE ReadDownDone        
+        LDA #$02
+        STA $0010
+ReadDownDone:
+
+ReadLeft:
+        LDA $4016
+        AND #%00000001
+        BEQ ReadLeftDone
+        LDA $0010
+        CMP #$00
+        BNE ReadLeftDone        
+        LDA #$03
+        STA $0010
+ReadLeftDone:
+
+ReadRight:
+        LDA $4016
+        AND #%00000001
+        BEQ ReadRightDone
+        LDA $0010
+        CMP #$00
+        BNE ReadRightDone        
+        LDA #$04
+        STA $0010
+ReadRightDone:
         
         RTI
 
@@ -238,14 +348,34 @@ palettes:
         .incbin "scavengerhunt.s"
 
 sprites:
-        .db $00,$00
-        .db $01,$00
-        .db $10,$00
-        .db $11,$00
-        ;; .db $80,$00,$00,$80
-        ;; .db $80,$01,$00,$88
-        ;; .db $88,$10,$00,$80
-        ;; .db $88,$11,$00,$88
+        .db $3F,$00,$00,$80
+        .db $3F,$01,$00,$88
+        .db $47,$10,$00,$80
+        .db $47,$11,$00,$88
+
+playerUp:  
+        .db $7F,$02,$00,$80
+        .db $7F,$03,$00,$88
+        .db $87,$12,$00,$80
+        .db $87,$13,$00,$88
+
+playerDown: 
+        .db $7F,$04,$00,$80
+        .db $7F,$05,$00,$80
+        .db $7F,$14,$00,$80
+        .db $7F,$15,$00,$80
+
+playerLeft:     
+        .db $7F,$06,$00,$80
+        .db $7F,$07,$00,$80
+        .db $7F,$16,$00,$80
+        .db $7F,$17,$00,$80
+
+playerRight:    
+        .db $7F,$08,$00,$80
+        .db $7F,$09,$00,$80
+        .db $7F,$18,$00,$80
+        .db $7F,$19,$00,$80
 
 attributes:
         .incbin "scavengerhunt.at"
