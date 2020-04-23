@@ -125,12 +125,12 @@ OddLineOffsetDone:
         CLC
         SBC #$0F
         STA $0000
-        JSR LoadBackgroundLoop
-
+        JMP LoadBackgroundLoop
+        
 LineResetDone:
         LDA #$00
         STA $0003
-        JSR LoadBackgroundLoop
+        JMP LoadBackgroundLoop
         
 LoadBackgroundDone:
 
@@ -148,30 +148,54 @@ LoadAttributesLoop:
         CPX #$40
         BNE LoadAttributesLoop
 
-LoadSprites:
+        JMP LoadSpriteDone
+LoadSprite:
         LDX #$00
-LoadSpritesLoop:
+LoadSpriteLoop:
+        LDA sprites,Y
+        STA $0200,Y
+        INY
+        INX
+        CPX #$10
+        BNE LoadSpriteLoop
+        RTS
+LoadSpriteDone:
+
+        JMP SwapSpriteDone
+SwapSprite:
+        ;; X - sprite data offset
+        ;; Y - sprite on ppu offset
+        LDA #$00
+        STA $0000               ; Progress count
+SwapSpriteLoop:
+        INX
+        INY
         LDA sprites,X
-        STA $0200,X
+        STA $0200,Y
         INX
-        CPX #$10
-        BNE LoadSpritesLoop
-        
-LoadArrow:
-        LDX #$00
-LoadArrowLoop:  
-        LDA playerUp,X
-        STA $0210,X
+        INY
+        LDA sprites,X
+        STA $0200,Y
         INX
-        CPX #$10
-        BNE LoadArrowLoop
-LoadArrowDone
+        INX
+        INY
+        INY
+        INC $0000
+        LDA $0000
+        CMP #$04
+        BNE SwapSpriteLoop
+        RTS
+SwapSpriteDone:
+
+        LDY #$00                ; Character
+        JSR LoadSprite
+        LDY #$10                ; Arrow
+        JSR LoadSprite
         
         LDA #%10010000          ; Enable NMI, sprites from pattern table 0
         STA $2000               ; Background from pattern table 1
         LDA #%00011110          ; Enable sprites, background
         STA $2001
-        
 
         LDA #$00
         STA $0010               ; Store player direction
@@ -179,8 +203,8 @@ LoadArrowDone
         STA $0012               ; Store player movement delay
         STA $0013               ; Store player movement progress
         
-        JSR PlayerMovementDone
-PlayerMovement:        
+        JMP PlayerMovementDone
+PlayerMovement:
         LDA $0010
         CMP #$00
         BEQ MoveDone
@@ -201,7 +225,7 @@ PlayerMovement:
         STA $0011
         STA $0012
         STA $0013
-        JSR MoveDone
+        JMP MoveDone
 FinishMoveDone:
         LDA $0010
         CMP #$01
@@ -210,7 +234,7 @@ FinishMoveDone:
         DEC $0214
         DEC $0218
         DEC $021C
-        JSR MoveDone
+        JMP MoveDone
 MoveUpDone:
         CMP #$02
         BNE MoveDownDone
@@ -218,7 +242,7 @@ MoveUpDone:
         INC $0214
         INC $0218
         INC $021C
-        JSR MoveDone
+        JMP MoveDone
 MoveDownDone:
         CMP #$03
         BNE MoveLeftDone
@@ -226,7 +250,7 @@ MoveDownDone:
         DEC $0217
         DEC $021B
         DEC $021F
-        JSR MoveDone
+        JMP MoveDone
 MoveLeftDone:
         CMP #$04
         BNE MoveDone
@@ -235,6 +259,7 @@ MoveLeftDone:
         INC $021B
         INC $021F
 MoveDone:
+        RTS
 PlayerMovementDone:     
         
 Forever:                        ; Main loop, interrupted by NMI
@@ -298,6 +323,9 @@ ReadUp:
         BNE ReadUpDone
         LDA #$01
         STA $0010
+        LDX #$10
+        LDY #$10
+        JSR SwapSprite
 ReadUpDone:
         
 ReadDown:
@@ -309,6 +337,9 @@ ReadDown:
         BNE ReadDownDone        
         LDA #$02
         STA $0010
+        LDX #$20
+        LDY #$10
+        JSR SwapSprite
 ReadDownDone:
 
 ReadLeft:
@@ -320,6 +351,9 @@ ReadLeft:
         BNE ReadLeftDone        
         LDA #$03
         STA $0010
+        LDX #$30
+        LDY #$10
+        JSR SwapSprite
 ReadLeftDone:
 
 ReadRight:
@@ -331,6 +365,9 @@ ReadRight:
         BNE ReadRightDone        
         LDA #$04
         STA $0010
+        LDX #$40
+        LDY #$10
+        JSR SwapSprite
 ReadRightDone:
         
         RTI
@@ -353,29 +390,29 @@ sprites:
         .db $47,$10,$00,$80
         .db $47,$11,$00,$88
 
-playerUp:  
+;; playerUp:  
         .db $7F,$02,$00,$80
         .db $7F,$03,$00,$88
         .db $87,$12,$00,$80
         .db $87,$13,$00,$88
 
-playerDown: 
+;; playerDown: 
         .db $7F,$04,$00,$80
-        .db $7F,$05,$00,$80
-        .db $7F,$14,$00,$80
-        .db $7F,$15,$00,$80
+        .db $7F,$05,$00,$88
+        .db $87,$14,$00,$80
+        .db $87,$15,$00,$88
 
-playerLeft:     
+;; playerLeft:     
         .db $7F,$06,$00,$80
-        .db $7F,$07,$00,$80
-        .db $7F,$16,$00,$80
-        .db $7F,$17,$00,$80
+        .db $7F,$07,$00,$88
+        .db $87,$16,$00,$80
+        .db $87,$17,$00,$88
 
-playerRight:    
+;; playerRight:
         .db $7F,$08,$00,$80
-        .db $7F,$09,$00,$80
-        .db $7F,$18,$00,$80
-        .db $7F,$19,$00,$80
+        .db $7F,$09,$00,$88
+        .db $87,$18,$00,$80
+        .db $87,$19,$00,$88
 
 attributes:
         .incbin "scavengerhunt.at"
