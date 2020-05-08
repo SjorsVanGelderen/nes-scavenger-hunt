@@ -45,6 +45,7 @@ ClearMemory:
         STA $0200,X             ; Move all sprites off screen
         INX
         BNE ClearMemory
+        
         JSR AwaitVerticalBlank  ; Second wait, PPU is ready after this
 
 LoadPalettes:
@@ -133,7 +134,7 @@ LineResetDone:
         JMP LoadBackgroundLoop
         
 LoadBackgroundDone:
-
+        
 LoadAttributes:
         LDA $2002
         LDA #$23
@@ -192,15 +193,9 @@ SwapSpriteDone:
         LDY #$10                ; Arrow
         JSR LoadSprite
         
-        LDA #%10010000          ; Enable NMI, sprites from pattern table 0
-        STA $2000               ; Background from pattern table 1
-        LDA #%00011110          ; Enable sprites, background
-        STA $2001
-
         LDA #$00
         STA $0010               ; Store player direction
         STA $0011               ; Store player movement delay
-        STA $0012               ; Store player movement delay
         STA $0013               ; Store player movement progress
         
         JMP PlayerMovementDone
@@ -210,20 +205,17 @@ PlayerMovement:
         BEQ MoveDone
         INC $0011
         LDA $0011
-        CMP #$00
+        CMP #$01
         BNE MoveDone
-        INC $0012
-        LDA $0012
-        CMP #$10
-        BMI MoveDone
+
+        LDA #$00
+        STA $0011
         INC $0013
         LDA $0013
         CMP #$11
         BNE FinishMoveDone
         LDA #$00
         STA $0010
-        STA $0011
-        STA $0012
         STA $0013
         JMP MoveDone
 FinishMoveDone:
@@ -261,16 +253,80 @@ MoveLeftDone:
 MoveDone:
         RTS
 PlayerMovementDone:     
+
+        LDA #%10010000          ; Enable NMI, sprites from pattern table 0
+        STA $2000               ; Background from pattern table 1
+        LDA #%00011110          ; Enable sprites, background
+        STA $2001
+
+        LDA #$00                
+        STA $0040               ; Text delay counter
+        STA $0041               ; Text PPU address
+        STA $0044               ; Text tile number
         
-Forever:                        ; Main loop, interrupted by NMI
-        JSR PlayerMovement
+Forever:
+        ;; Wait for NMI
         JMP Forever
+
+TextRoutine:
+        LDA $2002               ; Prepare PPU
+        LDA #$20
+        STA $2006
+        LDA $0041
+        STA $2006
         
-NMI:
+        LDA $0040
+        CMP #$05
+        BNE TextRoutineDone
+        LDA #$FF
+        STA $0040
+        
+        LDX $0044
+        LDA text,X
+        BEQ TextRoutineDone     ; Check for EOF
+        CMP #$02
+        BNE TextWhitespaceDone
+        LDA #$27                ; TODO: Replace with whitespace character
+        JMP TextLineEndDone
+TextWhitespaceDone:     
+        CMP #$01
+        BNE TextLineEndDone
+        ;; PHA
+        LDA $0041
+        CLC
+        ADC #$20
+        AND #$F0
+        ;; AND #%00000000          ; Wrong mask still
+        STA $0041
+        INC $0044
+        RTS
+        ;; PLA
+TextLineEndDone:
+        SEC
+        SBC #$03
+        STA $2007
+        INC $0041
+        INC $0044
+        
+        ;; LDA #$00
+        ;; STA $0041
+        ;; INC $0043
+TextRoutineDone:
+        INC $0040
+        RTS
+        
+NMI:        
         LDA #$00
         STA $2003               ; Set the low byte of the RAM address
         LDA #$02
         STA $4014               ; Set the high byte of the RAM address and start the transfer
+
+        LDA $0042
+        BEQ SkipTextRoutine
+        LDA $0043
+        BNE SkipTextRoutine
+        JSR TextRoutine
+SkipTextRoutine:
 
         LDA #%10010000          ; PPU cleanup
         STA $2000
@@ -279,7 +335,7 @@ NMI:
         LDA #$00
         STA $2005               ; Inform PPU there is no background scrolling
         STA $2005
-
+        
 LatchController:
         LDA #$01
         STA $4016
@@ -290,7 +346,10 @@ ReadA:
         LDA $4016
         AND #%00000001
         BEQ ReadADone
-        ;;  Do something
+        LDA $0042
+        BNE ReadADone
+        INC $0042
+        JSR TextRoutine
 ReadADone:
 
 ReadB:
@@ -369,6 +428,8 @@ ReadRight:
         LDY #$10
         JSR SwapSprite
 ReadRightDone:
+
+        JSR PlayerMovement
         
         RTI
 
@@ -416,6 +477,9 @@ sprites:
 
 attributes:
         .incbin "scavengerhunt.at"
+
+text:
+        .incbin "text.txt"
         
         .org $FFFA              ; IRQ vectors defined here
         .dw NMI
