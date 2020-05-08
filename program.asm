@@ -286,31 +286,24 @@ TextRoutine:
         BEQ TextRoutineDone     ; Check for EOF
         CMP #$02
         BNE TextWhitespaceDone
-        LDA #$27                ; TODO: Replace with whitespace character
+        LDA #$27                ; Whitespace character
         JMP TextLineEndDone
 TextWhitespaceDone:     
         CMP #$01
         BNE TextLineEndDone
-        ;; PHA
         LDA $0041
         CLC
         ADC #$20
         AND #$F0
-        ;; AND #%00000000          ; Wrong mask still
         STA $0041
         INC $0044
         RTS
-        ;; PLA
 TextLineEndDone:
         SEC
         SBC #$03
         STA $2007
         INC $0041
         INC $0044
-        
-        ;; LDA #$00
-        ;; STA $0041
-        ;; INC $0043
 TextRoutineDone:
         INC $0040
         RTS
