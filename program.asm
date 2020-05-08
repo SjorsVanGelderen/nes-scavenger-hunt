@@ -7,6 +7,18 @@
         .inesmap 0              ; Mapper 0
         .inesmir 1              ; Background mirroring
 
+        ;; Variables
+        .rsset $0010
+
+playerdir               .rs 1
+playermovedelay         .rs 1
+playermoveprogress      .rs 1
+
+textdelay               .rs 1
+textppuoffset           .rs 1
+texttile                .rs 1
+textflag                .rs 1
+        
         ;; PRG-ROM bank
 
         .bank 0
@@ -127,12 +139,10 @@ OddLineOffsetDone:
         SBC #$0F
         STA $0000
         JMP LoadBackgroundLoop
-        
 LineResetDone:
         LDA #$00
         STA $0003
         JMP LoadBackgroundLoop
-        
 LoadBackgroundDone:
         
 LoadAttributes:
@@ -194,32 +204,32 @@ SwapSpriteDone:
         JSR LoadSprite
         
         LDA #$00
-        STA $0010               ; Store player direction
-        STA $0011               ; Store player movement delay
-        STA $0013               ; Store player movement progress
+        STA playerdir
+        STA playermovedelay
+        STA playermoveprogress
         
         JMP PlayerMovementDone
 PlayerMovement:
-        LDA $0010
+        LDA playerdir
         CMP #$00
         BEQ MoveDone
-        INC $0011
-        LDA $0011
+        INC playermovedelay
+        LDA playermovedelay
         CMP #$01
         BNE MoveDone
 
         LDA #$00
-        STA $0011
-        INC $0013
-        LDA $0013
+        STA playermovedelay
+        INC playermoveprogress
+        LDA playermoveprogress
         CMP #$11
         BNE FinishMoveDone
         LDA #$00
-        STA $0010
-        STA $0013
+        STA playerdir
+        STA playermoveprogress
         JMP MoveDone
 FinishMoveDone:
-        LDA $0010
+        LDA playerdir
         CMP #$01
         BNE MoveUpDone
         DEC $0210
@@ -259,10 +269,10 @@ PlayerMovementDone:
         LDA #%00011110          ; Enable sprites, background
         STA $2001
 
-        LDA #$00                
-        STA $0040               ; Text delay counter
-        STA $0041               ; Text PPU address
-        STA $0044               ; Text tile number
+        LDA #$00
+        STA textdelay
+        STA textppuoffset
+        STA texttile
         
 Forever:
         ;; Wait for NMI
@@ -272,16 +282,16 @@ TextRoutine:
         LDA $2002               ; Prepare PPU
         LDA #$20
         STA $2006
-        LDA $0041
+        LDA textppuoffset
         STA $2006
-        
-        LDA $0040
+
+        LDA textdelay
         CMP #$05
         BNE TextRoutineDone
         LDA #$FF
-        STA $0040
-        
-        LDX $0044
+        STA textdelay
+
+        LDX texttile
         LDA text,X
         BEQ TextRoutineDone     ; Check for EOF
         CMP #$02
@@ -291,21 +301,22 @@ TextRoutine:
 TextWhitespaceDone:     
         CMP #$01
         BNE TextLineEndDone
-        LDA $0041
+        LDA textppuoffset
+        ;; LDA $0041
         CLC
         ADC #$20
         AND #$F0
-        STA $0041
-        INC $0044
+        STA textppuoffset
+        INC texttile
         RTS
 TextLineEndDone:
         SEC
         SBC #$03
         STA $2007
-        INC $0041
-        INC $0044
+        INC textppuoffset
+        INC texttile
 TextRoutineDone:
-        INC $0040
+        INC textdelay
         RTS
         
 NMI:        
@@ -314,10 +325,8 @@ NMI:
         LDA #$02
         STA $4014               ; Set the high byte of the RAM address and start the transfer
 
-        LDA $0042
+        LDA textflag
         BEQ SkipTextRoutine
-        LDA $0043
-        BNE SkipTextRoutine
         JSR TextRoutine
 SkipTextRoutine:
 
@@ -339,9 +348,9 @@ ReadA:
         LDA $4016
         AND #%00000001
         BEQ ReadADone
-        LDA $0042
+        LDA textflag
         BNE ReadADone
-        INC $0042
+        INC textflag
         JSR TextRoutine
 ReadADone:
 
